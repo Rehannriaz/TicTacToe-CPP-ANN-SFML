@@ -1,10 +1,8 @@
 #pragma once
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
+#include "Headers.h"
 
 using namespace std;
+
 /**
  * Structure made to read values from the file "tic-tac-toe.data"
  * 
