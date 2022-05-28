@@ -1,3 +1,6 @@
+#pragma once
+
+
 #include "Headers.h"
 
 #define Matrix Eigen::MatrixXf
@@ -16,17 +19,17 @@ class ANN {
         std::vector<int> topology;
         std::vector<Matrix*> layers;
         std::vector<Matrix*> weights;
-        //std::vector<std::vector<float>> layers;
 
         float bias;
         float learningRate;
 
-        void init();
 
     public:
+        ANN();
         ANN(std::vector<int> _topology);
         virtual ~ANN();
 
+        void init(std::vector<int> _topology);
         void initInput(Matrix &input);
         Matrix propogateForward(float (*activateFunction) (float));
         Matrix getOutput();
@@ -36,13 +39,20 @@ class ANN {
         void setBias(float bias);
 
         void train();
+        float getProbability(std::vector<float> currBoard, int Positions, int move);
+        std::tuple<int, float> getBestMove(std::vector<float> currBoard, std::vector<int> blankPositions, int move);
 };
 
 
+ANN::ANN(){
+    this->learningRate = 0.1f;
+    this->bias = 0.5f;
+}
 
-ANN::ANN(std::vector<int> _topology){
-    this->topology = _topology;
-    init();
+ANN::ANN(std::vector<int> _topology){    
+    this->learningRate = 0.1f;
+    this->bias = 0.5f;
+    init(_topology);
 }
 
 ANN::~ANN(){
@@ -54,7 +64,9 @@ ANN::~ANN(){
 }
 
 
-void ANN::init(){
+void ANN::init(std::vector<int> _topology){
+    this->topology = _topology;
+
     for(int i = 0; i < this->topology.size(); i++){
         this->layers.push_back(new Matrix(this->topology[i] , 1));
 
@@ -62,15 +74,9 @@ void ANN::init(){
             this->weights.push_back(new Matrix(this->topology[i], this->topology[i-1]));
             this->weights.back()->setRandom();
             *this->weights.back() += Matrix::Ones(this->topology[i], this->topology[i-1]);
-            // *this->weights.back() = this->weights.back()->unaryExpr(setPositive);
-            // std::cout << this->weights.back()->unaryExpr(randomizer0to1);
             std::cout << *this->weights.back() << std::endl << std::endl;
         }
     }
-
-
-
-
 }
 
 void ANN::initInput(Matrix &input){
@@ -122,31 +128,72 @@ void ANN::setBias(float bias){
     this->bias = bias;
 }
 
-// void ANN::train(){
-//     getInput getinput;
+void ANN::train(){
 
-//     for(int i = 0; i < 958; i++){
-//         float output = 100;
-//         getinput.getInput_(i);
+    std::cout << "TRAINING HAS STARTED\n\n";
 
-//         Matrix input;
-//         input << getinput.INP[0], getinput.INP[1], getinput.INP[2], getinput.INP[3], getinput.INP[4], 
-//                 getinput.INP[5], getinput.INP[6], getinput.INP[7], getinput.INP[8]; 
-//         Matrix target;
-//         target << getinput.target;
+    getInput getinput;
 
-//         while(abs(getinput.target - output) > getinput.acceptableValue){
-//             output = this->propogateForward(sigmoid).norm();
-//             this->propogateBackward(target, dSigmoid);
-//         }   
-//     }
+    for(int i = 1; i < 958; i++){
+        float output;
+        getinput.getInput_(i);
+
+        Matrix input(9, 1);
+        input << getinput.INP[0], getinput.INP[1], getinput.INP[2], getinput.INP[3], getinput.INP[4], 
+                getinput.INP[5], getinput.INP[6], getinput.INP[7], getinput.INP[8]; 
+        Matrix target(1, 1);
+        target << getinput.target;
 
 
+        std::cout << this->propogateForward(sigmoid);
+        output = this->propogateForward(sigmoid).norm();
+        while(abs(getinput.target - output) > 0.05){
+            output = this->propogateForward(sigmoid).norm();
+            this->propogateBackward(target, dSigmoid);
+        }
+        std::cout << "\n";
+        std::cout << i << "  " << output << std::endl;
+    }
+      
+    std::cout << "TRAINING HAS ENDED\n\n";
 
+}
 
-// }
+float ANN::getProbability(std::vector<float> currBoard, int Position, int move){
 
+    currBoard[Position] = move;
 
+    Matrix tempBoard(9, 1);
+    tempBoard << currBoard[0], currBoard[1], currBoard[2], currBoard[3], currBoard[4], 
+                currBoard[5], currBoard[6], currBoard[7], currBoard[8];
 
+    this->initInput(tempBoard);
+    return this->propogateForward(sigmoid).norm();
+}
 
+std::tuple<int, float> ANN::getBestMove(std::vector<float> currBoard, std::vector<int> blankPositions, int move){
+    int pos;
+    float highestProbability;
 
+    if(move == -1)
+        highestProbability = 10;
+    else
+        highestProbability = -10;
+
+    for(auto i : blankPositions){
+        float moveProbability = this->getProbability(currBoard, i , move);
+        if(move == -1){
+            if(moveProbability < highestProbability){
+                pos = i;
+                highestProbability = moveProbability;
+            }
+        } else {
+            if(moveProbability > highestProbability){
+                pos = i;
+                highestProbability = moveProbability;
+            }
+        }
+    }
+
+    return make_tuple(pos, highestProbability);
+}
